@@ -344,13 +344,3 @@ with col_radar:
     else:
         st.error("🚨 **财务高危（小金金同款）：** 您的家庭财务漏洞极其严重，几乎是在无防线、无蓄水、重债务或劣质资产积压的状态下在生活的风雨中裸奔。请立刻执行记账、冻结非必要大额开支，死守‘三个钱包’强行重组本金结构！")
 
-    st.markdown("---")
-    st.markdown("### 📢 如何将这个网页部署到互联网？")
-    st.info("""
-    这是一个使用 Python **Streamlit** 开发的交互式 Web 网页。如果您想把这个网页一键部署到互联网，让别人点进去也能进行测试，操作极为简单且完全免费：
-    
-    1. **注册一个 GitHub 账号**：将这个 Python 脚本上传到您 GitHub 仓库的根目录下，命名为 `app.py`。
-    2. **访问 Streamlit 官网**：访问 [share.streamlit.io](https://share.streamlit.io)，使用您的 GitHub 账号一键授权登录。
-    3. **一键部署**：在 Streamlit 页面点击 **"Create App"**，选择您刚刚上传的 GitHub 仓库，点击 **"Deploy"**。
-    4. **获取链接**：只需等待大约 1 分钟，Streamlit 就会自动为您部署完毕，并生成一个任何人都可以在浏览器直接访问的公开 **网页链接**！
-    """)
