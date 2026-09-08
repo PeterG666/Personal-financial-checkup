@@ -1,346 +1,235 @@
+import math
+from datetime import datetime
+
 import streamlit as st
-import pandas as pd
 
-# 设置网页配置
+
 st.set_page_config(
-    page_title="家庭财务健康深度诊断系统 - 董小姐理财系列",
-    page_icon="💰",
+    page_title="家庭财务体检｜清晰看见每一笔钱",
+    page_icon="◈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed",
 )
 
-# 自定义 CSS 样式
-st.markdown("""
-<style>
-    .main-title {
-        font-size: 2.5rem;
-        color: #1E3A8A;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 0.5rem;
-    }
-    .sub-title {
-        font-size: 1.1rem;
-        color: #4B5563;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background-color: #F3F4F6;
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        border-left: 5px solid #1E3A8A;
-        margin-bottom: 1rem;
-    }
-    .metric-title {
-        font-size: 1.1rem;
-        color: #374151;
-        font-weight: bold;
-    }
-    .metric-value {
-        font-size: 1.8rem;
-        color: #1E3A8A;
-        font-weight: bold;
-        margin: 0.5rem 0;
-    }
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.875rem;
-        font-weight: bold;
-        text-align: center;
-    }
-    .badge-pass {
-        background-color: #D1FAE5;
-        color: #065F46;
-    }
-    .badge-warn {
-        background-color: #FEF3C7;
-        color: #92400E;
-    }
-    .badge-fail {
-        background-color: #FEE2E2;
-        color: #991B1B;
-    }
-    .why-section {
-        background-color: #EFF6FF;
-        border: 1px solid #BFDBFE;
-        padding: 1.25rem;
-        border-radius: 0.5rem;
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# 侧边栏输入
-st.sidebar.header("📊 请输入您的财务数据")
-st.sidebar.markdown("---")
-
-# 基础收入与支出
-st.sidebar.subheader("1. 现金流数据")
-monthly_income = st.sidebar.number_input("每月税后总收入 (元)", min_value=1.0, value=15000.0, step=500.0)
-monthly_expense = st.sidebar.number_input("每月基本总开销 (元)", min_value=1.0, value=10000.0, step=500.0)
-monthly_savings = st.sidebar.number_input("每月实际固定储蓄 (元)", min_value=0.0, value=3000.0, step=100.0)
-
-# 资产数据
-st.sidebar.subheader("2. 资产配置")
-liquid_assets = st.sidebar.number_input("流动资产 (现金/活期/余额宝等，元)", min_value=0.0, value=15000.0, step=1000.0)
-earning_assets = st.sidebar.number_input("生息资产 (股票/基金/国债/收租房等，元)", min_value=0.0, value=20000.0, step=1000.0)
-depreciating_assets = st.sidebar.number_input("其他资产/耗钱资产 (奢侈品/衣服/车等，元)", min_value=0.0, value=30000.0, step=1000.0)
-
-total_assets = liquid_assets + earning_assets + depreciating_assets
-
-# 债务数据
-st.sidebar.subheader("3. 债务状况")
-monthly_debt = st.sidebar.number_input("每月硬性债务还款 (房贷/车贷/分期等，元)", min_value=0.0, value=4000.0, step=500.0)
-
-# 用户背景选择
-st.sidebar.subheader("4. 您的职业特征")
-occupation_type = st.sidebar.selectbox(
-    "选择您的职业状态",
-    ["国企/事业单位/公务员 (极稳定)", "普通企业员工 (相对稳定)", "创业者/自由职业者/收入波动大"]
+st.markdown(
+    """
+    <style>
+        :root { --ink: #15231D; --muted: #68756F; --line: #DCE5DE; --paper: #F7F8F4;
+                --green: #176B4A; --soft-green: #EAF4ED; --gold: #B87921; --red: #B7413E; }
+        .stApp { background: var(--paper); color: var(--ink); }
+        .block-container { max-width: 1180px; padding-top: 3.3rem; padding-bottom: 4rem; }
+        h1, h2, h3 { color: var(--ink) !important; letter-spacing: -0.025em; }
+        h1 { font-size: 2.35rem !important; margin-bottom: .45rem !important; }
+        h2 { margin-top: 1.8rem !important; }
+        .eyebrow { color: var(--green); font-size: .78rem; letter-spacing: .12em; font-weight: 700; }
+        .lede { color: var(--muted); font-size: 1.05rem; max-width: 680px; line-height: 1.7; }
+        [data-testid="stForm"] { background: #FFFFFF; border: 1px solid var(--line); border-radius: 18px;
+                                     padding: 1.25rem 1.5rem; }
+        .section-label { color: var(--green); font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+                          text-transform: uppercase; margin: .4rem 0 .1rem; }
+        .summary-card { border-radius: 18px; padding: 1.55rem 1.7rem; color: white; margin: 1rem 0 1.25rem; }
+        .summary-card.good { background: linear-gradient(125deg, #145C43, #278159); }
+        .summary-card.watch { background: linear-gradient(125deg, #89601D, #B9842E); }
+        .summary-card.risk { background: linear-gradient(125deg, #8F3737, #BF5751); }
+        .summary-kicker { font-size: .78rem; opacity: .8; letter-spacing: .1em; font-weight: 700; }
+        .summary-title { font-size: 1.65rem; font-weight: 700; margin: .3rem 0 .4rem; }
+        .summary-text { opacity: .93; line-height: 1.65; }
+        .metric-note { color: var(--muted); font-size: .88rem; line-height: 1.55; }
+        .status { display: inline-block; padding: .2rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+        .ok { color: #0E5A3D; background: #DDF2E5; } .warn { color: #80570E; background: #FFF0CC; }
+        .bad { color: #8A2929; background: #FCE2E0; }
+        .neutral { color: #53676A; background: #EAF0F0; }
+        [data-testid="stMetric"] { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: .8rem 1rem; }
+        [data-testid="stMetricLabel"] { color: var(--muted); }
+        div[data-testid="stFormSubmitButton"] button { background: var(--green); border: 0; min-height: 2.8rem;
+                                                        color: white; font-weight: 700; border-radius: 9px; }
+        div[data-testid="stFormSubmitButton"] button:hover { background: #0D5137; }
+        .disclaimer { color: var(--muted); font-size: .82rem; line-height: 1.6; }
+        @media (max-width: 640px) {
+            .block-container { padding: 1.7rem 1rem; }
+            h1 { font-size: 1.8rem !important; }
+            [data-testid="stForm"] { padding: 1rem; }
+            [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+            [data-testid="stColumn"] { min-width: 100% !important; width: 100% !important; flex: 1 1 100% !important; }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-# 页面头部
-st.markdown('<div class="main-title">💰 家庭财务健康深度诊断系统</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">基于董小姐《100天赚钱计划·金钱世界观》核心理论设计</div>', unsafe_allow_html=True)
 
-# 理论前言介绍
-with st.expander("📖 为什么要进行财务体检？（金钱世界观基础）", expanded=False):
-    st.markdown("""
-    很多人努力工作、疯狂加班，在**“一维斜杠（拼时间与精力重复劳动）”**上用体力硬扛，却发现依然存不下钱。
-    要想跨越财富鸿沟，就必须通过**“升级消费观”**阻断消费主义对我们本金的蚕食，并打造成熟的**“安全试错空间”**，
-    逐步把低效的劣质本金转变成**“优质生息资产”**（如核心房产、优质股债等），让资本作为外挂替我们工作。
-    
-    而在出发进入金融市场之前，**“知己之笔，财务诊断”是我们的第一步**。定期体检能让我们清晰亮化自己的财务防线，避免在风浪来临时陷入“断崖式下跌”的窘境。
-    """)
+def money(value: float) -> str:
+    return f"¥{value:,.0f}"
 
-# 计算指标
-# 1. 应急能力
-emergency_ratio = liquid_assets / monthly_expense if monthly_expense > 0 else 99.0
-# 2. 储蓄力
-savings_ratio = (monthly_savings / monthly_income) * 100 if monthly_income > 0 else 0.0
-# 3. 财务负担比率
-debt_ratio = (monthly_debt / monthly_income) * 100 if monthly_income > 0 else 0.0
-# 4. 生息资产比例
-earning_ratio = (earning_assets / total_assets) * 100 if total_assets > 0 else 0.0
 
-# 判定逻辑与标准
-# 应急标准判定
-if occupation_type == "国企/事业单位/公务员 (极稳定)":
-    target_emergency = 3.0
-    emergency_desc = "由于您工作极稳定，失业风险极低，您的防守底线指标设为 **3 个月** 即可，多余资金应尽最大效率配置到高增值资产中。"
+def status_for(value: float, good: float, caution: float, reverse: bool = False) -> tuple[str, str]:
+    if reverse:
+        if value <= good:
+            return "稳健", "ok"
+        if value <= caution:
+            return "留意", "warn"
+        return "优先处理", "bad"
+    if value >= good:
+        return "稳健", "ok"
+    if value >= caution:
+        return "留意", "warn"
+    return "优先处理", "bad"
+
+
+def diagnostic(data: dict) -> dict:
+    essential_outflow = data["monthly_expense"] + data["monthly_debt_payment"]
+    emergency_months = data["liquid_assets"] / essential_outflow if essential_outflow else None
+    savings_rate = data["monthly_savings"] / data["monthly_income"] * 100 if data["monthly_income"] else None
+    debt_service_rate = data["monthly_debt_payment"] / data["monthly_income"] * 100 if data["monthly_income"] else None
+    total_assets = data["liquid_assets"] + data["earning_assets"] + data["other_assets"]
+    earning_ratio = data["earning_assets"] / total_assets * 100 if total_assets else None
+    monthly_surplus = data["monthly_income"] - essential_outflow
+    net_worth = total_assets - data["remaining_debt"] if data["remaining_debt"] is not None else None
+    emergency_target = data["emergency_target"]
+    return {
+        "essential_outflow": essential_outflow, "emergency_months": emergency_months,
+        "emergency_target": emergency_target, "savings_rate": savings_rate,
+        "debt_service_rate": debt_service_rate, "earning_ratio": earning_ratio,
+        "total_assets": total_assets, "monthly_surplus": monthly_surplus, "net_worth": net_worth,
+    }
+
+
+def metric_block(title: str, value: str, status: str, css: str, formula: str, note: str) -> None:
+    st.markdown(f"#### {title}  <span class='status {css}'>{status}</span>", unsafe_allow_html=True)
+    st.metric("当前水平", value)
+    st.caption(formula)
+    st.markdown(f"<p class='metric-note'>{note}</p>", unsafe_allow_html=True)
+
+
+def build_actions(d: dict, data: dict) -> list[str]:
+    actions = []
+    if d["monthly_surplus"] < 0:
+        actions.append("先让现金流转正：逐项核对基本开销与每月还款，暂停新增消费性负债，并为支出设上限。")
+    if d["essential_outflow"] == 0:
+        actions.append("补全支出口径：检查房租、保险、生活费等是否遗漏，或确认目前由他人承担；缺少必要支出时无法估算安全垫。")
+    if d["emergency_months"] is not None and d["emergency_months"] < d["emergency_target"]:
+        gap = max(0, d["emergency_target"] * d["essential_outflow"] - data["liquid_assets"])
+        actions.append(f"建立应急缓冲：按当前支出与还款，目标为 {d['emergency_target']} 个月，尚差约 {money(gap)}。优先放在随时可用、低波动的账户。")
+    if (d["debt_service_rate"] is not None and d["debt_service_rate"] > 35) or (not data["monthly_income"] and data["monthly_debt_payment"]):
+        actions.append("梳理债务：列出每笔利率、月供和到期日，评估还款来源；提前还款前同时考虑违约费用与应急资金需求。")
+    if d["net_worth"] is not None and d["net_worth"] < 0:
+        actions.append("复核净资产：目前债务本金大于已填资产。检查是否漏填自住房等资产，并按可实现的现值重新核对。")
+    if d["savings_rate"] is not None and d["savings_rate"] < 30 and d["monthly_surplus"] > 0:
+        amount = min(d["monthly_surplus"], data["monthly_income"] * .3)
+        actions.append(f"让储蓄可持续：按当前收支，月度储蓄可先以不超过 {money(amount)} 为讨论起点。先记账一个月，确认偶发支出后再安排自动转存。")
+    if not actions and d["monthly_surplus"] == 0:
+        actions.append("为现金流留出余量：当前收入刚好覆盖支出，可先核对非必要开支，逐步建立每月结余。")
+    if d["net_worth"] is None:
+        actions.append("补全债务本金：确认各笔贷款的剩余本金后重新提交，才能评估家庭净资产；没有债务时填写 0。")
+    if not actions:
+        actions.append("维持当前结构：每季度复核一次收支、负债和资产配置；收入、家庭责任或目标发生变化时及时更新。")
+    return actions[:3]
+
+
+st.markdown("<div class='eyebrow'>PERSONAL FINANCE CHECKUP</div>", unsafe_allow_html=True)
+st.title("把家庭财务，理清楚一点")
+st.markdown("<p class='lede'>用几分钟整理收支与资产，看见财务现状，找到下一步。<br>01 填写数据　→　02 查看体检　→　03 制定行动</p>", unsafe_allow_html=True)
+
+with st.form("financial_input", clear_on_submit=False):
+    st.subheader("填写你的财务数据")
+    st.caption("以个人或家庭为统一口径，所有金额单位均为人民币元。初始数字仅供示例，请替换为实际情况。")
+    st.markdown("<div class='section-label'>01 / 每月收支</div>", unsafe_allow_html=True)
+    income_col, expense_col, savings_col = st.columns(3)
+    with income_col:
+        monthly_income = st.number_input("每月税后总收入（元）", min_value=0.0, value=15000.0, step=500.0, help="家庭每月到手收入总额。")
+    with expense_col:
+        monthly_expense = st.number_input("每月生活总支出（不含还贷，元）", min_value=0.0, value=8000.0, step=500.0, help="包括必要与可选消费：房租、餐饮、交通、娱乐等；年度保费等折算到每月。不包含储蓄、投资转账和债务还款。")
+    with savings_col:
+        monthly_savings = st.number_input("每月新增储蓄／投资（元）", min_value=0.0, value=3000.0, step=500.0, help="仅填本月收入中留下的钱，不含已有存款搬家、借款或投资市值涨幅。")
+    st.markdown("<div class='section-label'>02 / 资产与负债</div>", unsafe_allow_html=True)
+    st.caption("每笔资产只计一次，按当前估值填写：应急资金 → 其余投资资产 → 自用资产。房屋按全值填入，贷款本金在负债中扣除。")
+    asset_col_1, asset_col_2, asset_col_3 = st.columns(3)
+    with asset_col_1:
+        liquid_assets = st.number_input("流动资产（元）", min_value=0.0, value=30000.0, step=1000.0, help="现金、活期、货币基金等可较快动用的资金。")
+    with asset_col_2:
+        earning_assets = st.number_input("其他生息／投资资产（元）", min_value=0.0, value=20000.0, step=1000.0, help="不含左侧已填的流动资产。如长期存款、债券、基金、股票、出租房产。")
+    with asset_col_3:
+        other_assets = st.number_input("自用或其他资产（元）", min_value=0.0, value=30000.0, step=1000.0, help="包括自住房、车辆等，按当前合理变现价值填写，而非买入价。")
+    debt_col_1, debt_col_2, occupation_col = st.columns(3)
+    with debt_col_1:
+        monthly_debt_payment = st.number_input("每月债务还款（元）", min_value=0.0, value=4000.0, step=500.0, help="房贷、车贷、消费贷、分期等每月必须还款。")
+    with debt_col_2:
+        remaining_debt = st.number_input("剩余债务本金（元，可留空）", min_value=0.0, value=None, step=10000.0, placeholder="无债务填 0，未知留空", help="留空时不计算净资产。包括住房、汽车及其他贷款尚未偿还的本金。")
+    with occupation_col:
+        emergency_target = st.selectbox("应急储备目标（月）", [3, 6, 9, 12], index=1, help="按收入稳定性、家庭责任与实际支出选择；收入波动大或责任较重时可考虑更长缓冲期。")
+    submitted = st.form_submit_button("生成我的财务体检报告", type="primary", use_container_width=True)
+
+if submitted:
+    candidate = {
+        "monthly_income": monthly_income, "monthly_expense": monthly_expense, "monthly_savings": monthly_savings,
+        "liquid_assets": liquid_assets, "earning_assets": earning_assets, "other_assets": other_assets,
+        "monthly_debt_payment": monthly_debt_payment, "remaining_debt": remaining_debt, "emergency_target": emergency_target,
+    }
+    errors = []
+    if any(value is not None and (not math.isfinite(value) or value < 0) for value in candidate.values()):
+        errors.append("金额必须是有效的非负数字。")
+    if monthly_savings > max(0, monthly_income - monthly_expense - monthly_debt_payment) + .01:
+        errors.append("新增储蓄超过扣除生活支出和还款后的结余，请核对是否重复计算，或把已有资金转账当作新增储蓄。")
+    if remaining_debt == 0 and monthly_debt_payment > 0:
+        errors.append("已填写每月还款，但剩余债务为 0。请核对本金；未知时可清空该项。")
+    if errors:
+        for error in errors:
+            st.error(error)
+        st.info("本次未生成报告。修正后重新提交；此前报告暂不展示。")
+        st.stop()
+    st.session_state["report_input"] = candidate
+    st.session_state["report_time"] = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
+
+if "report_input" not in st.session_state:
+    st.info("填写上方数据后，点击“生成我的财务体检报告”。报告只会在你主动提交后更新。")
+    st.stop()
+
+data = st.session_state["report_input"]
+d = diagnostic(data)
+emergency_status, emergency_css = status_for(d["emergency_months"], d["emergency_target"], d["emergency_target"] * 0.6) if d["emergency_months"] is not None else ("待补充支出", "warn")
+savings_status, savings_css = status_for(d["savings_rate"], 30, 15) if d["savings_rate"] is not None else ("暂无收入", "warn")
+debt_status, debt_css = status_for(d["debt_service_rate"], 35, 50, reverse=True) if d["debt_service_rate"] is not None else (("优先处理", "bad") if data["monthly_debt_payment"] else ("无月供", "ok"))
+earning_status, earning_css = "结构观察", "neutral"
+safe_count = sum(status == "稳健" for status in [emergency_status, savings_status, debt_status])
+critical = (d["monthly_surplus"] < 0 or emergency_css == "bad" or debt_css == "bad" or (d["net_worth"] is not None and d["net_worth"] < 0))
+
+if critical:
+    summary_class, summary_title = "risk", "先稳住现金流与安全边际"
+    summary_text = "当前现金流、安全垫、月供或净资产中至少有一项需要优先关注。可先从下方行动建议着手，逐步减少刚性压力。"
+elif safe_count == 3 and d["net_worth"] is not None:
+    summary_class, summary_title = "good", "三项基础指标达到当前参考目标"
+    summary_text = "安全垫、储蓄和月供比例达到当前参考目标。定期复核家庭目标与收支；这不代表投资收益或整体财务安全得到保证。"
 else:
-    target_emergency = 6.0
-    emergency_desc = "考虑到您的工作或收入存在一定波动，或家庭开支责任较重，您的防守安全指标应设为 **6 个月**，以确保任何突发变故下生活体面不降级。"
+    summary_class, summary_title = "watch", "还有值得补充与调整的地方"
+    summary_text = "查看下方具体指标，优先补全数据、确认可持续结余与应急储备。投资资产占比仅作结构观察，不参与健康评级。"
 
-if emergency_ratio >= target_emergency:
-    emergency_status = "合格"
-    emergency_badge = '<span class="status-badge badge-pass">✅ 优良</span>'
-elif emergency_ratio >= (target_emergency * 0.6):
-    emergency_status = "警告"
-    emergency_badge = '<span class="status-badge badge-warn">⚠️ 偏低</span>'
-else:
-    emergency_status = "不合格"
-    emergency_badge = '<span class="status-badge badge-fail">❌ 极度危险</span>'
+st.markdown("<div class='section-label'>你的专属报告</div>", unsafe_allow_html=True)
+st.caption(f"生成于 {st.session_state['report_time']} · 以下结果基于最近一次提交。修改表单后，请重新点击生成按钮。")
+st.markdown(f"<div class='summary-card {summary_class}'><div class='summary-kicker'>FINANCIAL SNAPSHOT</div><div class='summary-title'>{summary_title}</div><div class='summary-text'>{summary_text}</div></div>", unsafe_allow_html=True)
+overview = st.columns(4)
+overview[0].metric("储蓄前月度结余", money(d["monthly_surplus"]), help="月收入 − 生活总支出 − 每月债务还款；储蓄是结余的去向，不重复扣除。")
+overview[1].metric("家庭净资产", money(d["net_worth"]) if d["net_worth"] is not None else "待补全债务", help="总资产 − 剩余债务本金；未知本金时不估算。")
+overview[2].metric("月支出与还款", money(d["essential_outflow"]))
+overview[3].metric("总资产", money(d["total_assets"]))
+if d["net_worth"] is None:
+    st.caption("剩余债务本金尚未填写，净资产暂不可评估。")
+unallocated = d["monthly_surplus"] - data["monthly_savings"]
+if unallocated > .01:
+    st.caption(f"结余中有 {money(unallocated)} 尚未计入新增储蓄，可核对是否有遗漏支出或待分配资金。")
 
-# 储蓄力判定
-if savings_ratio >= 30.0:
-    savings_badge = '<span class="status-badge badge-pass">✅ 合格</span>'
-    savings_status = "合格"
-else:
-    savings_badge = '<span class="status-badge badge-fail">❌ 不合格</span>'
-    savings_status = "不合格"
+st.subheader("四项核心检查")
+left, right = st.columns(2, gap="large")
+with left:
+    metric_block("安全垫", f"{d['emergency_months']:.1f} 个月" if d['emergency_months'] is not None else "暂不可计算", emergency_status, emergency_css, f"流动资产 ÷（生活总支出 + 月供）；你选择的目标为 {d['emergency_target']} 个月。", "按维持当前生活开支估算缓冲时间。没有支出数据时无法测算，收入稳定性与家庭责任也应纳入考虑。")
+    metric_block("储蓄力", f"{d['savings_rate']:.1f}%" if d['savings_rate'] is not None else "暂不可计算", savings_status, savings_css, "每月新增储蓄／投资 ÷ 税后总收入；本工具参考目标为 30%。", "稳定、可持续的储蓄，是建立安全垫和长期资金的共同起点。30% 是自查参考值，并非人人必须达到的标准。")
+with right:
+    metric_block("债务压力", f"{d['debt_service_rate']:.1f}%" if d['debt_service_rate'] is not None else "暂无收入基数", debt_status, debt_css, "每月债务还款 ÷ 税后总收入；35% 和 50% 为本工具的提醒界线。", "还款比例只是一个维度，还需结合利率、到期日与生活支出判断；零收入时不把月供比例记为零。")
+    metric_block("其他投资资产占比", f"{d['earning_ratio']:.1f}%" if d['earning_ratio'] is not None else "暂无资产", earning_status, earning_css, "其他生息／投资资产 ÷ 总资产；不含已归入流动资产的部分。", "仅展示结构，不设统一及格线。合适的配置取决于资金用途、期限与风险承受能力，不能从占比推断收益。")
 
-# 债务负担判定
-if debt_ratio == 0:
-    debt_badge = '<span class="status-badge badge-pass">✅ 零负债</span>'
-    debt_status = "安全"
-elif debt_ratio <= 35.0:
-    debt_badge = '<span class="status-badge badge-pass">✅ 安全合理</span>'
-    debt_status = "安全"
-else:
-    debt_badge = '<span class="status-badge badge-fail">❌ 负担沉重</span>'
-    debt_status = "高危"
+st.subheader("接下来，优先做这几件事")
+for index, action in enumerate(build_actions(d, data), start=1):
+    st.markdown(f"**{index:02d}**　{action}")
 
-# 生息资产比例判定
-if earning_ratio >= 50.0:
-    earning_badge = '<span class="status-badge badge-pass">✅ 合格</span>'
-    earning_status = "合格"
-else:
-    earning_badge = '<span class="status-badge badge-warn">⚠️ 偏低</span>'
-    earning_status = "不合格"
-
-
-# 页面主体：左右分栏
-col_metrics, col_radar = st.columns([2, 1])
-
-with col_metrics:
-    st.subheader("📋 您的财务体检报告")
-    
-    # 1. 应急能力卡片
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="metric-title">【指标一】 应急能力 (流动资产 / 月基本支出)</span>
-            {emergency_badge}
-        </div>
-        <div class="metric-value">当前可支撑：{emergency_ratio:.2f} 个月 <span style="font-size:1rem; color:#6B7280;">(目标: {target_emergency} 个月)</span></div>
-        <div class="why-section">
-            <strong>🔍 为什么测算这项指标？</strong><br>
-            应急能力是家庭财务的<b>“防撞安全气囊”</b>。它不负责生钱，但负责在您突然遭遇失业、家庭变故或收入中断时，给您和家庭提供最基本的尊严保障，避免生活水准断崖式下跌。它决定了您在遭遇糟糕环境时是否有底气“插着金钱的翅膀飞走”。
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 根据结果给出针对性建议并解释“为什么”
-    st.markdown("💡 **应急建议与方案深剖：**")
-    st.markdown(emergency_desc)
-    if emergency_status == "不合格":
-        st.error("""
-        **🚨 诊断红线警报：** 您的紧急储备金严重不足！
-        - **建议方案：** 立即停止非必要的大额日常开支（如买包、衣服、潮牌）。执行“有钱花钱包”扣留计划，在接下来的 3~6 个月内，发完工资后，强行将收入的 1/3 到 1/2 存入流动活期或余额宝，**直到应急备用金能完全覆盖您生活开支的目标月份数为止**。
-        - **为什么这么建议？** 如果没有这层缓冲，一旦遭遇突发开支（如家人住院、孩子急需开支、工作调整），您将瞬间面临债务断裂的危险，甚至被迫在市场低点“割肉”卖出长期股票或基金等投资，造成永久性本金亏损。
-        """)
-    else:
-        st.success("🎉 **安全防线稳固：** 您的应急流动资金充足，能够抵御大部分突发生活风险。保持当前状态，多余本金可以大胆向生息资产配置！")
-        
-    st.markdown("---")
-
-    # 2. 储蓄力卡片
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="metric-title">【指标二】 储蓄力 (月实际储蓄 / 月收入)</span>
-            {savings_badge}
-        </div>
-        <div class="metric-value">当前储蓄率：{savings_ratio:.1f}% <span style="font-size:1rem; color:#6B7280;">(及格线: 30%)</span></div>
-        <div class="why-section">
-            <strong>🔍 为什么测算这项指标？</strong><br>
-            储蓄力决定了您财富雪球的原始积累速度。如果每月攒不下钱，即使投资收益率再高（比如年化 20%），在极小的本金基数下也毫无意义。储蓄力是您财富大厦的地基。
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("💡 **储蓄力建议与方案深剖：**")
-    if savings_status == "不合格":
-        st.warning("""
-        **⚠️ 诊断黄线警告：** 您的储蓄力不达标，极易陷入像“小金金”一样工作三年无存款、钱一发就光（如大姨妈般来一次一星期就没）的尴尬死循环。
-        
-        **🛠️ 董小姐实操降维解药：**
-        1. **重塑“花钱肉痛感”：** 立即开启记账！在电子移动支付盛行的当下，刷卡让人对“本金流失”麻木，记账能重新唤醒付现金时的生理“疼惜感”，逼你审视每笔支出的必要性。
-        2. **严格执行【三个钱包分配法】：**
-           - **投资钱包 (钱生钱钱包) 占 1/3**：发工资第一天强行划走，雷打不动拿去定投或存起，这是你用来买“生生不息的蛋”的本金。
-           - **有钱花钱包占 1/3**：覆盖衣食住行、水电房贷等硬性生存开销。
-           - **爱怎么花就怎么花钱包占 1/5**：只作为小目标达成的自我奖励（如一束花、一顿大餐），确保生活质量不窒息，告别报复性消费。
-        3. **24小时冷静期：** 看到昂贵的非必需品（如大牌包、潮牌），在购物车里先锁 24 小时。科学表明，90% 的消费冲动会在一天后烟消云散。
-        
-        **🔍 为什么这么建议？** 
-        消费主义的狡猾在于让你产生“买了这个包/车，我就能成为完美形象”的幻觉，用消费定义自己。但真相是，你消费了什么，无法定义你；你<b>创造的</b>才真正代表你自己。先买鸡吃，吃完就得被迫继续卖命打工，无限轮回；先存蛋孵鸡，孵出养鸡场，未来才能有无穷无尽的鸡吃。
-        """)
-    else:
-        st.success("🎉 **财富增殖地基牢固：** 您的储蓄习惯良好！请继续保持三个钱包的科学分流，坚决将每月积累下来的闲钱转入优质生息资产。")
-
-    st.markdown("---")
-
-    # 3. 财务负担比率卡片
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="metric-title">【指标三】 财务负担比率 (每月债务还款 / 可支配月收入)</span>
-            {debt_badge}
-        </div>
-        <div class="metric-value">当前债务占比：{debt_ratio:.1f}% <span style="font-size:1rem; color:#6B7280;">(安全红线: 35%)</span></div>
-        <div class="why-section">
-            <strong>🔍 为什么测算这项指标？</strong><br>
-            债务是刚性流出的毒药。如果债务还款过高，将严重挤压日常生活的腾挪空间，逼迫您为了保住工作还房贷，而在职场上不敢说“不”、不敢辞职换赛道，彻底丧失说走就走的自由。
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("💡 **债务负担建议与方案深剖：**")
-    if debt_status == "高危":
-        st.error(f"""
-        **🚨 诊断债务警报：** 您的月供负债占比 ({debt_ratio:.1f}%) 已经远远超过了 35% 的安全警戒线！
-        - **建议方案：** 
-          1. 绝对不能再新增任何消费贷、信用卡分期！
-          2. 如果有置换大房、换豪车的计划，立即叫停。
-          3. 在未来的财务计划中，优先利用年终奖或闲置贬值资产变现，偿还部分高息债务，强行把债务比率拉回 35% 以下。
-        - **为什么这么建议？** 当月负债占比超过 50% 时，家庭基本没有任何容错空间（如同董小姐那位年入百万却因买学区大房每月还款 40% 的朋友）。一旦有一方遭遇降薪、失业或者老人生病，家庭信用将面临瞬间崩塌，不得不节衣缩食，严重摧残家庭幸福感。
-        """)
-    else:
-        st.success("🎉 **负债状态极佳：** 您的负债水平处于绝对安全的安全区间或零负债状态，财务姿态极其轻盈！如果未来有购房等硬性加杠杆行为，请严格将其限制在月可支配收入的 35% 以内。")
-
-    st.markdown("---")
-
-    # 4. 生息资产比例卡片
-    st.markdown(f"""
-    <div class="metric-card">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="metric-title">【指标四】 生息资产比例 (生息资产 / 总资产)</span>
-            {earning_badge}
-        </div>
-        <div class="metric-value">当前生息占比：{earning_ratio:.1f}% <span style="font-size:1rem; color:#6B7280;">(合格线: 50%)</span></div>
-        <div class="why-section">
-            <strong>🔍 为什么测算这项指标？</strong><br>
-            生息资产比例决定了您<b>“让钱给您打工”</b>的真实工作效率。如果该比例过低，说明您的大量资产沉淀在无收益的死钱（如零利息活期存款）或快速贬值的奢侈品消费品（如包包、衣服、豪车等耗钱资产）中。
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("💡 **资产增值建议与方案深剖：**")
-    if earning_status == "不合格":
-        st.warning(f"""
-        **⚠️ 诊断资产警告：** 您的生息资产占比仅有 {earning_ratio:.1f}%，未达到 50% 的合格标准，这说明您目前无法有效抵御真实的通货膨胀！
-        
-        **🛠️ 董小姐资产重组药方：**
-        1. **看清通胀掠夺：** 躺在银行 1.5% 定期或余额宝 2% 里的存款，看似安全，但实际上在每年约 **10% 真实通胀率（广义货币M2增速）** 面前，正在以每年近 10% 的速度被“小偷”无形地割韭菜吞噬。
-        2. **停止囤积折上折资产：** 不要再囤奢侈品包包、衣服等！大牌包背出柜台那一刻，二手市场直接打折，最惨打到 3 折，持有它无异于持有一款“折上折”的急速贬值资产。
-        3. **打造【安全试错空间】跨出投资第一步：**
-           - **选择正规场所**：只去正规银行、证券交易所或天弘基金，绝对不要碰不透明、没有国家金融监管的非正规理财平台（如曾暴雷的 P2P）。
-           - **极小本金试错**：用“哪怕丢了也完全不心痛”的金额（如 1000 元或 2000 元）买入优质股票、基金等凭证。
-           - **死守 20%~30% 止损点**：一旦买入的基金跌到 30% 清盘线，果断割肉离场，交学费认错。这不仅是保本手段，更是训练直面亏损、截断风险的投资心智。
-           
-        **🔍 为什么这么建议？**
-        投资理财和学游泳一样，只在陆地上看书是学不会的。唯有用一小笔钱“真枪实弹”地投入正规市场中，经历一轮小幅度的市场波动，磨砺半年以上建立好“车感”，您才能真正将劣质资产升级成核心地段房产、优质企业股权等能跑赢通胀的优良生息资产，安全踏入 ESBI 的 <b>I (Investor 投资人)</b> 象限。
-        """)
-    else:
-        st.success("🎉 **财务引擎运转良好：** 您的生息资产过半，正在让资金高效地参与社会造富协作。请继续坚持“做懂行投资，不碰PPT虚无概念公司”的投资常识！")
-
-
-with col_radar:
-    st.subheader("🎯 资产健康度雷达简析")
-    
-    # 模拟数据雷达，使用 Streamlit 的简单 chart
-    chart_data = pd.DataFrame({
-        "指标": ["应急能力", "储蓄力", "债务健康", "生息占比"],
-        "您的得分": [
-            min(100.0, (emergency_ratio / target_emergency) * 100),
-            min(100.0, (savings_ratio / 30.0) * 100),
-            min(100.0, (100.0 - (debt_ratio / 35.0) * 100) if debt_ratio <= 100.0 else 0),
-            min(100.0, (earning_ratio / 50.0) * 100)
-        ]
-    })
-    
-    st.dataframe(
-        chart_data.set_index("指标"),
-        use_container_width=True
-    )
-    
-    st.markdown("📌 *说明：得分达到 100 说明已安全越过董小姐设定的理财及格线。*")
-    
-    # 诊断总评语
-    st.markdown("---")
-    st.subheader("🏆 诊断终极评语")
-    
-    score_count = sum([emergency_status == "合格", savings_status == "合格", debt_status == "安全", earning_status == "合格"])
-    if score_count == 4:
-        st.balloons()
-        st.success("🏆 **财务王者（神雕侠侣型）：** 您的四项财务指标全部合格！您已经拥有了扎实健全的金钱世界观，防线稳固，大厦牢固，非常适合向 Level 1（实战科目二：踩离合、挂档）实操投资进发！")
-    elif score_count >= 2:
-        st.info("📈 **财务稳健（中规中矩型）：** 您的财务地基基本合格，但仍有 1~2 处防御漏洞容易遭到通货膨胀或消费主义的侵袭。请针对黄色/红色警报指标，按上面开出的药方迅速调整钱包比例。")
-    else:
-        st.error("🚨 **财务高危（小金金同款）：** 您的家庭财务漏洞极其严重，几乎是在无防线、无蓄水、重债务或劣质资产积压的状态下在生活的风雨中裸奔。请立刻执行记账、冻结非必要大额开支，死守‘三个钱包’强行重组本金结构！")
-
+with st.expander("查看计算口径与使用说明"):
+    st.markdown("- 应急目标由你选择；储蓄率 30%、月供比例 35%／50% 是本工具的自查参考，不是普适标准。\n- 每笔资产只填一次；自住房计入自用资产，不计入应急资金。\n- 本次报告仅反映已填数据，未评估保险保障、负债利率、税务或投资集中度。\n- 内容沿用原应用的财务自查框架并调整表述，未逐条核验课程音频。\n\n参考：[CFPB：应急资金](https://www.consumerfinance.gov/an-essential-guide-to-building-an-emergency-fund/) · [Investor.gov：资产配置](https://www.investor.gov/introduction-investing/getting-started/asset-allocation)")
+st.markdown("<p class='disclaimer'>本工具用于个人财务教育与自我梳理，报告基于你填写的数据和通用参考口径生成，不构成投资、信贷或法律建议。</p>", unsafe_allow_html=True)
