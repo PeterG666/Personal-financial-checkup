@@ -20,12 +20,12 @@ class FinancialCheckupTest(unittest.TestCase):
         self.assertFalse(self.app.exception)
         self.assertEqual(len(self.app.metric), 0)
         self.submit()
-        self.assertEqual(self.values()["储蓄前月度结余"], "¥3,000")
-        self.assertEqual(self.values()["家庭净资产"], "待补全债务")
+        self.assertEqual(self.values()["每月花完、还完后剩下的钱"], "¥3,000")
+        self.assertEqual(self.values()["扣掉欠款后，还剩多少家底"], "还没填欠款")
         self.app.number_input[0].set_value(20000).run()
-        self.assertEqual(self.values()["储蓄前月度结余"], "¥3,000")
+        self.assertEqual(self.values()["每月花完、还完后剩下的钱"], "¥3,000")
         self.submit()
-        self.assertEqual(self.values()["储蓄前月度结余"], "¥8,000")
+        self.assertEqual(self.values()["每月花完、还完后剩下的钱"], "¥8,000")
 
     def test_impossible_savings_blocks_report(self):
         self.submit()
@@ -42,7 +42,7 @@ class FinancialCheckupTest(unittest.TestCase):
         self.app.number_input[0].set_value(0)
         self.app.number_input[2].set_value(0)
         self.submit()
-        self.assertEqual(self.values()["储蓄前月度结余"], "¥-12,000")
+        self.assertEqual(self.values()["每月花完、还完后剩下的钱"], "¥-12,000")
         self.assertIn("暂无收入基数", [metric.value for metric in self.app.metric])
         self.assertTrue(any("summary-card risk" in item.value for item in self.app.markdown))
 
@@ -57,7 +57,7 @@ class FinancialCheckupTest(unittest.TestCase):
         self.app.number_input[7].set_value(100000)
         self.app.selectbox[0].set_value(9)
         self.submit()
-        self.assertEqual(self.values()["家庭净资产"], "¥-20,000")
+        self.assertEqual(self.values()["扣掉欠款后，还剩多少家底"], "¥-20,000")
         self.assertTrue(any("summary-card risk" in item.value for item in self.app.markdown))
         self.assertTrue(any("尚差约 ¥78,000" in item.value for item in self.app.markdown))
 
